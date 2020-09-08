@@ -1,0 +1,442 @@
+openapi: 3.0.3
+info:
+  version: 2.0.0
+  title: Harry Potter Lexicon Webservice
+  description: >-
+    The Harry Potter Lexicon API gives current and historical dynamic
+    information from the Wizarding World
+  license:
+    name: MIT
+    url: https://github.com/hp-lexicon/lexicon-api
+  contact:
+    name: Nick Moline
+    email: webmaster@hp-lexicon.org
+paths:
+  /home:
+    get:
+      summary: Home Page Information
+      description: >-
+        Contains information necessary to render the current bar on the home
+        page
+      tags:
+        - Currency
+        - Weather
+        - Home
+      responses:
+        200:
+          description: Home Page Dynamic Information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomePageDetails'
+  /currencies:
+    get:
+      summary: Get's a list of available currencies
+      description: List of currencies
+      tags:
+        - Currency
+      responses:
+        200:
+          description: List of currencies supported by the currency converter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyList"
+  /currency/convert/{sourceCurrency}/{targetCurrency}:
+    get:
+      summary: Convert between two currencies
+      description: Conversion Response
+      tags:
+        - Currency
+      parameters:
+        - name: sourceCurrency
+          in: path
+          required: true
+          description: Source Currency to Convert From, must match a currency code as returned by /currencies either Source or Target MUST be one of the wizarding currencies
+          schema:
+            $ref: "#/components/schemas/CurrencyCode"
+        - name: targetCurrency
+          in: path
+          required: true
+          description: Target Currency to Convert To, must match a currency code as returned by /currencies either Source or Target MUST be one of the wizarding currencies
+          schema:
+            $ref: "#/components/schemas/CurrencyCode"
+        - name: amount
+          in: query
+          description: Amount of sourceCurrency to convert to targetCurrency, required if sourceCurrency is not WIZ
+          schema:
+            type: number
+            format: float
+        - name: galleons
+          in: query
+          description: Number of Galleons, required if sourceCurrency is WIZ
+          schema:
+            type: integer
+        - name: sickles
+          in: query
+          description: Number of Sickles, required if sourceCurrency is WIZ
+          schema:
+            type: integer
+        - name: knuts
+          in: query
+          description: Number of Knuts, required if sourceCurrency is WIZ
+          schema:
+            type: integer
+        - name: date
+          in: query
+          description: Date of currency conversion, defaults to the current date
+          required: false
+          schema:
+            type: string
+            format: date
+            default: current date
+      responses:
+        200:
+          description: Successful Currency Conversion
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/NumericCurrencyConversionResult"
+                  - $ref: "#/components/schemas/WizardingCurrencyConversionResult"
+components:
+  schemas:
+    DateTime:
+      type: object
+      properties:
+        date:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$'
+          example: 2020-09-08 05:36:09.000000
+          description: Date string
+        timezone_type:
+          type: integer
+          example: 3
+        timezone:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: 'UTC'
+    HomePageDetails:
+      type: object
+      properties:
+        current:
+          description: "Currency Conversion Rate for User's Country Currency"
+          $ref: "#/components/schemas/CurrencyConversionRate"
+        moon:
+          description: Current Phase of the Moon
+          $ref: '#/components/schemas/MoonPhaseData'
+        locations:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocationData"
+        rates:
+          description: Conversion Rate List
+          $ref: '#/components/schemas/ConvertedCurrencyList'
+    NumericCurrencyConversionResult:
+      type: object
+      description: Returned if targetCurrency is anything other than "WIZ"
+      properties:
+        type:
+          type: string
+          enum:
+            - numeric
+          example: numeric
+        value:
+          type: number
+          format: float
+          example: 5.00
+        currency_code:
+          $ref: "#/components/schemas/CurrencyCode"
+        currency_name:
+          type: string
+          description: Label for the currency in question
+          example: "United States Dollar"
+    WizardingCurrencyConversionResult:
+      type: object
+      description: Returned if targetCurrency is "WIZ"
+      properties:
+        type:
+          type: string
+          enum:
+            - wizard
+          example: wizard
+        galleons:
+          type: integer
+          description: Number of Gold Galleons
+          example: 1
+        sickles:
+          type: integer
+          description: Number of Silver Sickles
+          example: 0
+        knuts:
+          type: integer
+          description: Number of Bronze Knuts
+          example: 0
+    CurrencyConversionRate:
+      type: object
+      properties:
+        amount: 
+          type: number
+          format: float
+          example: 6.58
+        currency_code:
+          $ref: "#/components/schemas/CurrencyCode"
+        currency_name:
+          type: string
+          description: Label for the currency in question
+          example: "United States Dollar"
+    MoonPhaseData:
+      type: object
+      description: Moon Phase Data
+      properties:
+        emoji:
+          type: string
+          description: Unicode Emoji for the phase of the moon
+          example: "&#x1f316;"
+        label:
+          type: string
+          description: Descriptive String for the phase of the moon
+          example: "Waning Gibbous"
+        icon:
+          type: string
+          description: >-
+            CSS class name for moon phase matching CSS class from Weather Icons
+            http://erikflowers.github.io/weather-icons/
+          example: "wi-moon-waning-gibbous-5"
+    CurrencyCode:
+      type: string
+      description: 3 character code representing a currency
+      pattern: '^[A-Z0-9]{3}$'
+      example: "USD"
+    ConvertedCurrencyList:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/CurrencyConversionRate"
+      example:
+        USD:
+          amount: 6.58
+          currency_code: USD
+          currency_name: United States Dollar
+        GBP:
+          amount: 5.00
+          currency_code: GBP
+          currency_name: British Pound Sterling
+        EUR:
+          amount: 5.57
+          currency_code: EUR
+          currency_name: Euro
+    CurrencyList:
+      type: object
+      additionalProperties:
+        type: string
+      example:
+        WIZ: British Wizarding Currency (Galleons, Sickles, and Knuts)
+        WZG: Gold Galleon
+        WZS: Silver Sickle
+        WZK: Bronze Knut
+        WZD: Dragot
+        WZL: Leprechaun Gold Coins
+        WZE: Dobby Work Hour
+        GBP: British Pound Sterling
+        USD: United States Dollar
+        EUR: Euro
+    LocationData:
+      type: object
+      description: Location Information
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z0-9\-\_]+$'
+          example: hogwarts
+          description: Location Identifier
+        lat:
+          type: number
+          format: float
+          description: Latitude
+          example: 56.685156
+        lon:
+          type: number
+          format: float
+          description: Longitude
+          example: -4.586522
+        real:
+          type: object
+          description: Closest Real Location
+          properties:
+            name:
+              type: string
+              example: Spean Bridge
+              description: Name of location
+            country:
+              type: string
+              pattern: "[A-Z]{2}"
+              description: 2 Character Country Code
+              example: "GB"
+            lat:
+              type: number
+              format: float
+              description: Latitude
+              example: 56.69
+            lon:
+              type: number
+              format: float
+              description: Longitude
+              example: -4.59
+        current:
+          type: object
+          description: Current Weather Conditions
+          properties:
+            f:
+              type: number
+              format: float
+              description: Temperature in Fahrenheit
+              example: 57.2
+            c:
+              type: number
+              format: float
+              description: Temperature in Celsius
+              example: 14.02
+            h:
+              type: number
+              format: float
+              description: Current Humidity Percentage
+              minimum: 0
+              maximum: 100
+              example: 93
+            p:
+              type: integer
+              description: Current Barametric Pressure
+              example: 1017
+        min:
+          type: object
+          description: Low Temperature of the Day
+          properties:
+            f:
+              type: number
+              format: float
+              description: Temperature in Fahrenheit
+              example: 57.2
+            c:
+              type: number
+              format: float
+              description: Temperature in Celsius
+              example: 14.02
+        max:
+          type: object
+          description: High Temperature of the Day
+          properties:
+            f:
+              type: number
+              format: float
+              description: Temperature in Fahrenheit
+              example: 57.2
+            c:
+              type: number
+              format: float
+              description: Temperature in Celsius
+              example: 14.02
+        wind:
+          type: object
+          description: Current Wind Conditions
+          properties:
+            speed:
+              type: number
+              format: float
+              description: Current Wind Speed
+              example: 10.29
+            unit:
+              type: string
+              description: Unit of Measure for Wind Speed
+              example: mph
+            descr:
+              type: string
+              description: Description of Wind Condition
+              example: Gentle Breeze
+            angle:
+              type: integer
+              minimum: 0
+              maximum: 360
+              description: Angle the wind is coming from
+              example: 230
+            dir:
+              type: string
+              description: Description of wind direction
+              example: Southwest
+        condition:
+          type: object
+          description: Description of current weather condition
+          properties:
+            id:
+              type: integer
+              description: OpenWeatherMap ID of weather condition
+              example: 803
+            description:
+              type: string
+              description: "description of weather condition"
+              example: broken clouds
+            icon:
+              type: string
+              description: OpenWeatherMap Icon ID
+              example: 04d
+        icon_url:
+          type: string
+          description: OpenWeatherMap Icon URL
+          example: //openweathermap.org/img/w/04d.png
+        icon_day:
+          type: string
+          description: >-
+            CSS class name for Daytime CSS class from Weather Icons for current weather condition
+            http://erikflowers.github.io/weather-icons/
+          example: 'wi-day-cloudy'
+        icon_night:
+          type: string
+          description: >-
+            CSS class name for Nighttime CSS class from Weather Icons for current weather condition
+            http://erikflowers.github.io/weather-icons/
+          example: 'wi-night-alt-cloudy'        
+        icon:
+          type: string
+          description: >-
+            CSS class name for current CSS class from Weather Icons for current weather condition
+            http://erikflowers.github.io/weather-icons/
+          example: 'wi-day-cloudy'
+        sun:
+          type: object
+          description: Sun rise and set for the day
+          properties:
+            rise:
+              description: Time of Sunrise
+              $ref: "#/components/schemas/DateTime"
+            set:
+              description: Time of Sunset
+              $ref: "#/components/schemas/DateTime"
+            current:
+              type: string
+              enum:
+                - Day
+                - Night
+              example: Day
+        fetched:
+          description: Time the weather information was last fetched from OpenWeatherMap
+          $ref: "#/components/schemas/DateTime"
+        timezone:
+          type: string
+          description: Timezone String for location
+          example: Europe/London
+        lexicon:
+          type: object
+          description: Lexicon Information
+          properties:
+            name:
+              type: string
+              description: Name of Location in the Lexicon
+              example: Hogwarts
+            id:
+              type: string
+              description: Identifier for this location
+              example: hogwarts
+            link:
+              type: string
+              format: url
+              description: "https://www.hp-lexicon.org/place/hogwarts-school-of-witchcraft-and-wizardry/"
+  
