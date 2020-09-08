@@ -21,7 +21,6 @@ paths:
       tags:
         - Currency
         - Weather
-        - Home
       responses:
         200:
           description: Home Page Dynamic Information
