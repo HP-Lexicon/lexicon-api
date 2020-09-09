@@ -41,6 +41,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CurrencyList"
+  /currency/rates:
+    get:
+      summary: Get Currency Conversion Rates for a given date
+      tags:
+        - Currency
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: Date to convert, defaults to current date
+          schema:
+            type: string
+            format: date
+            default: NOW()
+      responses:
+        200:
+          description: Currency Conversion Rates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                    description: Date that these currency conversion rates were valid
+                  rates:
+                    $ref: '#/components/schemas/ConvertedCurrencyList'
   /currency/convert/{sourceCurrency}/{targetCurrency}:
     get:
       summary: Convert between two currencies
@@ -88,7 +116,7 @@ paths:
           schema:
             type: string
             format: date
-            default: current date
+            default: NOW()
       responses:
         200:
           description: Successful Currency Conversion
