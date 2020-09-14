@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   version: 2.0.0
-  title: Harry Potter Lexicon Webservice
+  title: Harry Potter Lexicon Magic Service
   description: >-
     The Harry Potter Lexicon API gives current and historical dynamic
     information from the Wizarding World
@@ -11,6 +11,14 @@ info:
   contact:
     name: Nick Moline
     email: webmaster@hp-lexicon.org
+servers:
+  - description: Live Lexicon Magic Service URL
+    url: https://magic.hp-lexicon.org/
+tags:
+  - name: Gringotts
+    description: Currency Conversion Endpoints
+  - name: Atlas
+    description: Locations in the Wizarding or Muggle World
 paths:
   /home:
     get:
@@ -19,8 +27,8 @@ paths:
         Contains information necessary to render the current bar on the home
         page
       tags:
-        - Currency
-        - Weather
+        - Gringotts
+        - Atlas
       responses:
         200:
           description: Home Page Dynamic Information
@@ -45,7 +53,7 @@ paths:
     get:
       summary: Get Currency Conversion Rates for a given date
       tags:
-        - Currency
+        - Gringotts
       parameters:
         - name: date
           in: query
@@ -74,7 +82,7 @@ paths:
       summary: Convert between two currencies
       description: Conversion Response
       tags:
-        - Currency
+        - Gringotts
       parameters:
         - name: sourceCurrency
           in: path
@@ -126,8 +134,116 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/NumericCurrencyConversionResult"
                   - $ref: "#/components/schemas/WizardingCurrencyConversionResult"
+  /location:
+    get:
+      summary: Get an index of locations we have data on
+      description: List of Wizarding Locations
+      tags:
+        - Atlas
+      responses:
+        200:
+          description: List of Wizarding Locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: "#/components/schemas/LocationSummary"
+                    - $ref: "#/components/schemas/LocationData"
+  /location/{placeId}:
+    get:
+      summary: Get detailed information for a wizarding location
+      description: Details for a Wizarding Location
+      tags:
+        - Atlas
+      parameters:
+        - name: placeId
+          description: Lexicon Location Identifier
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z0-9\-\_]+$'
+            example: hogwarts
+      responses:
+        200:
+          description: Wizarding Location Information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationData"
+        404:
+          description: Unknown Wizarding Location
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error404"
+  /location/coordinates/{latitude}/{longitude}:
+    get:
+      summary: Gets weather, time, and almanac information for a given latitude and longitude
+      description: Wizarding Information by Latitude/Longitude, **NOTE** This Endpoint is currently limited to requests originating from the lexicon website only
+      tags:
+        - Atlas
+      parameters:
+        - name: latitude
+          in: path
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: -90.0
+            maximum: 90.0
+        - name: longitude
+          in: path
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: -180.0
+            maximum: 180.0
+      responses:
+        200:
+          description: Successful Location Information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericLocationData"
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      description: Object Not Found Error
+      properties:
+        code:
+          type: integer
+          minimum: 100
+          maximum: 700
+          example: 400
+        message:
+          type: string
+          example: Invalid Request
+    Error404:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            code:
+              type: integer
+              enum:
+                - 404
+              example: 404
+            message:
+              type: string
+              example: "Unknown Value for Parameter placeId: banana"
+            parameter:
+              type: string
+              description: The Parameter that could not be found
+              example: placeId
+            value:
+              type: string
+              description: The value for the parameter that could not be found
+              example: banana
     DateTime:
       type: object
       properties:
@@ -140,9 +256,23 @@ components:
           type: integer
           example: 3
         timezone:
+          $ref: "#/components/schemas/TimeZone"
+    TimeZone:
+      type: object
+      description: Time Zone the Location is in
+      properties:
+        name:
           type: string
-          pattern: '^[A-Z]{3}$'
-          example: 'UTC'
+          pattern: '^[A-Za-z0-9\-\_]+/[A-Za-z0-9\-\_]+$'
+          example: Europe/London
+        abbreviation:
+          type: string
+          pattern: '^[A-Za-z]{3,4}$'
+          example: BST
+        offset:
+          type: string
+          pattern: '^[\+\-]?\d{2}:\d{2}'
+          example: '+01:00'
     HomePageDetails:
       type: object
       properties:
@@ -267,203 +397,213 @@ components:
         GBP: British Pound Sterling
         USD: United States Dollar
         EUR: Euro
-    LocationData:
+    TemperatureData:
       type: object
-      description: Location Information
+      description: Temperature
       properties:
-        id:
-          type: string
-          pattern: '^[a-z0-9\-\_]+$'
-          example: hogwarts
-          description: Location Identifier
+        c:
+          type: number
+          format: float
+          description: Temperature in Celsius
+          minimum: -273.15
+          example: 14.02
+        k:
+          type: number
+          format: float
+          description: Temperature in Kelvin
+          minimum: 0
+          example: 287.17
+        f:
+          type: number
+          format: float
+          description: Temperature in Fahrenheit
+          example: 57.2
+    GenericLocationSummary:
+      type: object
+      description: Generic Information for a Location
+      properties:
         lat:
           type: number
           format: float
           description: Latitude
+          minimum: -90.0
+          maximum: 90.0
           example: 56.685156
         lon:
           type: number
           format: float
           description: Longitude
+          minimum: -180.0
+          maximum: 180.0
           example: -4.586522
-        real:
-          type: object
-          description: Closest Real Location
-          properties:
-            name:
-              type: string
-              example: Spean Bridge
-              description: Name of location
-            country:
-              type: string
-              pattern: "[A-Z]{2}"
-              description: 2 Character Country Code
-              example: "GB"
-            lat:
-              type: number
-              format: float
-              description: Latitude
-              example: 56.69
-            lon:
-              type: number
-              format: float
-              description: Longitude
-              example: -4.59
-        current:
-          type: object
-          description: Current Weather Conditions
-          properties:
-            f:
-              type: number
-              format: float
-              description: Temperature in Fahrenheit
-              example: 57.2
-            c:
-              type: number
-              format: float
-              description: Temperature in Celsius
-              example: 14.02
-            h:
-              type: number
-              format: float
-              description: Current Humidity Percentage
-              minimum: 0
-              maximum: 100
-              example: 93
-            p:
-              type: integer
-              description: Current Barametric Pressure
-              example: 1017
-        min:
-          type: object
-          description: Low Temperature of the Day
-          properties:
-            f:
-              type: number
-              format: float
-              description: Temperature in Fahrenheit
-              example: 57.2
-            c:
-              type: number
-              format: float
-              description: Temperature in Celsius
-              example: 14.02
-        max:
-          type: object
-          description: High Temperature of the Day
-          properties:
-            f:
-              type: number
-              format: float
-              description: Temperature in Fahrenheit
-              example: 57.2
-            c:
-              type: number
-              format: float
-              description: Temperature in Celsius
-              example: 14.02
-        wind:
-          type: object
-          description: Current Wind Conditions
-          properties:
-            speed:
-              type: number
-              format: float
-              description: Current Wind Speed
-              example: 10.29
-            unit:
-              type: string
-              description: Unit of Measure for Wind Speed
-              example: mph
-            descr:
-              type: string
-              description: Description of Wind Condition
-              example: Gentle Breeze
-            angle:
-              type: integer
-              minimum: 0
-              maximum: 360
-              description: Angle the wind is coming from
-              example: 230
-            dir:
-              type: string
-              description: Description of wind direction
-              example: Southwest
-        condition:
-          type: object
-          description: Description of current weather condition
+        timezone:
+          $ref: "#/components/schemas/TimeZone"
+    LocationSummary:
+      type: object
+      description: Wizarding Location Summary
+      allOf:
+        - type: object
           properties:
             id:
-              type: integer
-              description: OpenWeatherMap ID of weather condition
-              example: 803
-            description:
               type: string
-              description: "description of weather condition"
-              example: broken clouds
-            icon:
-              type: string
-              description: OpenWeatherMap Icon ID
-              example: 04d
-        icon_url:
-          type: string
-          description: OpenWeatherMap Icon URL
-          example: //openweathermap.org/img/w/04d.png
-        icon_day:
-          type: string
-          description: >-
-            CSS class name for Daytime CSS class from Weather Icons for current weather condition
-            http://erikflowers.github.io/weather-icons/
-          example: 'wi-day-cloudy'
-        icon_night:
-          type: string
-          description: >-
-            CSS class name for Nighttime CSS class from Weather Icons for current weather condition
-            http://erikflowers.github.io/weather-icons/
-          example: 'wi-night-alt-cloudy'        
-        icon:
-          type: string
-          description: >-
-            CSS class name for current CSS class from Weather Icons for current weather condition
-            http://erikflowers.github.io/weather-icons/
-          example: 'wi-day-cloudy'
-        sun:
-          type: object
-          description: Sun rise and set for the day
-          properties:
-            rise:
-              description: Time of Sunrise
-              $ref: "#/components/schemas/DateTime"
-            set:
-              description: Time of Sunset
-              $ref: "#/components/schemas/DateTime"
-            current:
-              type: string
-              enum:
-                - Day
-                - Night
-              example: Day
-        fetched:
-          description: Time the weather information was last fetched from OpenWeatherMap
-          $ref: "#/components/schemas/DateTime"
-        timezone:
-          type: string
-          description: Timezone String for location
-          example: Europe/London
-        lexicon:
-          type: object
-          description: Lexicon Information
-          properties:
+              pattern: '^[a-z0-9\-\_]+$'
+              example: hogwarts
             name:
               type: string
               description: Name of Location in the Lexicon
-              example: Hogwarts
-            id:
+              example: Hogwarts School of Witchcraft and Wizardry
+            short:
               type: string
-              description: Identifier for this location
-              example: hogwarts
+              description: Short Name of Location in the Lexicon
+              example: Hogwarts
             link:
               type: string
               format: url
-              description: "https://www.hp-lexicon.org/place/hogwarts-school-of-witchcraft-and-wizardry/"
+              description: Link to the
+              example: "https://www.hp-lexicon.org/place/hogwarts-school-of-witchcraft-and-wizardry/"
+        - $ref: "#/components/schemas/GenericLocationSummary"
+    GenericLocationData:
+      type: object
+      description: Location Information for undefined location
+      allOf:
+        - $ref: "#/components/schemas/GenericLocationSummary"
+        - type: object
+          properties:
+            real:
+              type: object
+              description: Closest Real Location
+              properties:
+                name:
+                  type: string
+                  example: Spean Bridge
+                  description: Name of location
+                country:
+                  type: string
+                  pattern: "[A-Z]{2}"
+                  description: 2 Character Country Code
+                  example: "GB"
+                lat:
+                  type: number
+                  format: float
+                  description: Latitude
+                  example: 56.69
+                lon:
+                  type: number
+                  format: float
+                  description: Longitude
+                  example: -4.59
+            current:
+              type: object
+              description: Current Weather Conditions
+              allOf:
+                - $ref: "#/components/schemas/TemperatureData"
+                - type: object
+                  properties:
+                    h:
+                      type: number
+                      format: float
+                      description: Current Humidity Percentage
+                      minimum: 0
+                      maximum: 100
+                      example: 93
+                    p:
+                      type: integer
+                      description: Current Barometric Pressure
+                      example: 1017
+            low:
+              type: object
+              description: Low Temperature of the Day
+              $ref: "#/components/schemas/TemperatureData"
+            high:
+              type: object
+              description: High Temperature of the Day
+              $ref: "#/components/schemas/TemperatureData"
+            wind:
+              type: object
+              description: Current Wind Conditions
+              properties:
+                speed:
+                  type: number
+                  format: float
+                  description: Current Wind Speed
+                  example: 10.29
+                unit:
+                  type: string
+                  description: Unit of Measure for Wind Speed
+                  example: mph
+                descr:
+                  type: string
+                  description: Description of Wind Condition
+                  example: Gentle Breeze
+                angle:
+                  type: integer
+                  minimum: 0
+                  maximum: 360
+                  description: Angle the wind is coming from
+                  example: 230
+                dir:
+                  type: string
+                  description: Description of wind direction
+                  example: Southwest
+            condition:
+              type: object
+              description: Description of current weather condition
+              properties:
+                id:
+                  type: integer
+                  description: OpenWeatherMap ID of weather condition
+                  example: 803
+                description:
+                  type: string
+                  description: "description of weather condition"
+                  example: broken clouds
+                icon:
+                  type: string
+                  description: OpenWeatherMap Icon ID
+                  example: 04d
+            icon_url:
+              type: string
+              description: OpenWeatherMap Icon URL
+              example: //openweathermap.org/img/w/04d.png
+            icon_day:
+              type: string
+              description: >-
+                CSS class name for Daytime CSS class from Weather Icons for current weather condition
+                http://erikflowers.github.io/weather-icons/
+              example: 'wi-day-cloudy'
+            icon_night:
+              type: string
+              description: >-
+                CSS class name for Nighttime CSS class from Weather Icons for current weather condition
+                http://erikflowers.github.io/weather-icons/
+              example: 'wi-night-alt-cloudy'        
+            icon:
+              type: string
+              description: >-
+                CSS class name for current CSS class from Weather Icons for current weather condition
+                http://erikflowers.github.io/weather-icons/
+              example: 'wi-day-cloudy'
+            sun:
+              type: object
+              description: Sun rise and set for the day
+              properties:
+                rise:
+                  description: Time of Sunrise
+                  $ref: "#/components/schemas/DateTime"
+                set:
+                  description: Time of Sunset
+                  $ref: "#/components/schemas/DateTime"
+                current:
+                  type: string
+                  enum:
+                    - Day
+                    - Night
+                  example: Day
+            fetched:
+              description: Time the weather information was last fetched from OpenWeatherMap
+              $ref: "#/components/schemas/DateTime"
+    LocationData:
+      allOf:
+        - $ref: "#/components/schemas/LocationSummary"
+        - $ref: "#/components/schemas/GenericLocationData"
   
