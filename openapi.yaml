@@ -13,7 +13,7 @@ info:
     email: webmaster@hp-lexicon.org
 servers:
   - description: Live Lexicon Magic Service URL
-    url: https://magic.hp-lexicon.org/
+    url: https://magic.hp-lexicon.org
 tags:
   - name: Gringotts
     description: Currency Conversion Endpoints
@@ -250,11 +250,8 @@ components:
         date:
           type: string
           pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$'
-          example: 2020-09-08 05:36:09.000000
+          example: "2020-09-08 05:36:09.000000"
           description: Date string
-        timezone_type:
-          type: integer
-          example: 3
         timezone:
           $ref: "#/components/schemas/TimeZone"
     TimeZone:
@@ -273,6 +270,9 @@ components:
           type: string
           pattern: '^[\+\-]?\d{2}:\d{2}'
           example: '+01:00'
+        type:
+          type: integer
+          example: 3
     HomePageDetails:
       type: object
       properties:
